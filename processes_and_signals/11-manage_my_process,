@@ -1,23 +1,32 @@
 #!/usr/bin/env bash
 # Manages "manage_my_process"
+
 killer() {
-    kill "$(pgrep -f /manage_my_process)"
+    echo "Stopping process..."
+    pgrep -fl manage_my_process  # Debug: Show running processes
+    kill "$(pgrep -f manage_my_process)"
     rm -f /var/run/my_process.pid &
 }
 
-if [[ "$1" == "start" ]]
-then
-    ./manage_my_process &
+if [[ "$1" == "start" ]]; then
+    chmod +x manage_my_process  # Ensure executable
+    ./manage_my_process &  
+    sleep 1  # Wait for process to start
     echo "$!" > /var/run/my_process.pid
-    echo "manage_my_process started"
-elif [[ "$1" == "stop" ]]
-then
-    killer; echo "manage_my_process stopped";
-elif [[ "$1" == "restart" ]]
-then
-    killer; ./manage_my_process &
+    echo "manage_my_process started with PID $(cat /var/run/my_process.pid)"
+
+elif [[ "$1" == "stop" ]]; then
+    killer
+    echo "manage_my_process stopped"
+
+elif [[ "$1" == "restart" ]]; then
+    killer
+    sleep 1  # Allow time for process to stop
+    ./manage_my_process &  
+    sleep 1  # Ensure process starts
     echo "$!" > /var/run/my_process.pid
-    echo "manage_my_process restarted"
+    echo "manage_my_process restarted with PID $(cat /var/run/my_process.pid)"
+
 else
-    echo "Usage: manage_my_process {start|stop|restart}"
+    echo "Usage: $0 {start|stop|restart}"
 fi
