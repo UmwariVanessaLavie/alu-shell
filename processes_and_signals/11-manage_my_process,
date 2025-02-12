@@ -1,32 +1,46 @@
 #!/usr/bin/env bash
 # Manages "manage_my_process"
 
+PROCESS_NAME="manage_my_process"
+PID_FILE="/var/run/my_process.pid"
+
 killer() {
-    echo "Stopping process..."
-    pgrep -fl manage_my_process  # Debug: Show running processes
-    kill "$(pgrep -f manage_my_process)"
-    rm -f /var/run/my_process.pid &
+    if [[ -f "$PID_FILE" ]]; then
+        PID=$(cat "$PID_FILE")
+        if ps -p "$PID" > /dev/null 2>&1; then
+            echo "Stopping $PROCESS_NAME with PID $PID..."
+            kill "$PID"
+            sleep 1
+        fi
+        rm -f "$PID_FILE"
+        echo "Process stopped and PID file deleted."
+    else
+        echo "No PID file found. Process might not be running."
+    fi
 }
 
 if [[ "$1" == "start" ]]; then
-    chmod +x manage_my_process  # Ensure executable
-    ./manage_my_process &  
-    sleep 1  # Wait for process to start
-    echo "$!" > /var/run/my_process.pid
-    echo "manage_my_process started with PID $(cat /var/run/my_process.pid)"
+    if [[ -f "$PID_FILE" ]]; then
+        echo "$PROCESS_NAME is already running!"
+    else
+        chmod +x "$PROCESS_NAME"
+        nohup ./"$PROCESS_NAME" > /dev/null 2>&1 &  # Run in the background properly
+        echo "$!" > "$PID_FILE"
+        echo "$PROCESS_NAME started with PID $(cat $PID_FILE)"
+    fi
 
 elif [[ "$1" == "stop" ]]; then
     killer
-    echo "manage_my_process stopped"
 
 elif [[ "$1" == "restart" ]]; then
     killer
-    sleep 1  # Allow time for process to stop
-    ./manage_my_process &  
-    sleep 1  # Ensure process starts
-    echo "$!" > /var/run/my_process.pid
-    echo "manage_my_process restarted with PID $(cat /var/run/my_process.pid)"
+    sleep 1
+    chmod +x "$PROCESS_NAME"
+    nohup ./"$PROCESS_NAME" > /dev/null 2>&1 &  
+    echo "$!" > "$PID_FILE"
+    echo "$PROCESS_NAME restarted with PID $(cat $PID_FILE)"
 
 else
     echo "Usage: $0 {start|stop|restart}"
 fi
+
